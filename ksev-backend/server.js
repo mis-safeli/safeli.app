@@ -5,25 +5,75 @@ const cors = require('cors');
 const { Pool } = require('pg');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
-// ---------------- Middleware ------------------
-app.use(cors());
+// ✅ Environment variables for production
+const isProduction = process.env.NODE_ENV === 'production';
+
+// ✅ CORS Configuration for Render
+app.use(cors({
+  origin: [
+    "https://mis-safeli.github.io",
+    "http://localhost:3000",
+    "https://safeli-app.onrender.com"
+  ],
+  methods: "GET,POST,PUT,DELETE",
+  credentials: true
+}));
+
 app.use(bodyParser.json());
 
-// ---------------- PostgreSQL Connection ------------------
+// ✅ PostgreSQL Connection with Environment Variables
 const pool = new Pool({
-  user: 'admin',
-  host: 'dpg-d3l2j449c44c73914930-a.oregon-postgres.render.com',
-  database: 'safelidb',
-  password: 'e0sxce39kiPRTyw9Ye6XRb1OMILQCa7e',
-  port: 5432,
-  ssl: { rejectUnauthorized: false }
+  user: process.env.DB_USER || 'admin',
+  host: process.env.DB_HOST || 'dpg-d3l2j449c44c73914930-a.oregon-postgres.render.com',
+  database: process.env.DB_NAME || 'safelidb',
+  password: process.env.DB_PASSWORD || 'e0sxce39kiPRTyw9Ye6XRb1OMILQCa7e',
+  port: process.env.DB_PORT || 5432,
+  ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
+// ✅ Database connection
 pool.connect()
-  .then(() => console.log('PostgreSQL connected successfully!'))
-  .catch(err => console.error('DB connection error:', err));
+  .then(() => console.log('✅ PostgreSQL connected successfully!'))
+  .catch(err => {
+    console.error('❌ DB connection error:', err.message);
+    // Retry connection after 5 seconds
+    setTimeout(() => {
+      console.log('🔄 Retrying database connection...');
+      pool.connect();
+    }, 5000);
+  });
+
+// ✅ Root endpoint for Render
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Safeli Server is running on Render',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// ✅ Health check endpoint for Render
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    await pool.query('SELECT 1');
+    res.json({ 
+      status: 'OK', 
+      message: 'Server and Database are running properly',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (err) {
+    res.status(503).json({ 
+      status: 'ERROR', 
+      message: 'Database connection failed',
+      error: err.message 
+    });
+  }
+});
 
 // ==================== Sales Endpoints ====================
 
@@ -145,10 +195,6 @@ app.delete('/sales/:order_no', async (req, res) => {
 });
 
 // ==================== Clients Endpoints ====================
-
-// GET all clients
-
-// ---------------- Clients Endpoints ------------------
 
 // GET all clients
 app.get('/clients', async (req, res) => {
@@ -329,21 +375,7 @@ app.get('/clients/search/:query', async (req, res) => {
   }
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'Server is running',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-// ---------------- Users Endpoints ------------------
+// ==================== Users Endpoints ====================
 
 // GET all users
 app.get('/api/users', async (req, res) => {
@@ -525,8 +557,7 @@ app.get('/api/users/search/:query', async (req, res) => {
   }
 });
 
-
-// ---------------- Authentication Endpoints ------------------
+// ==================== Authentication Endpoints ====================
 
 // POST login user
 app.post('/api/auth/login', async (req, res) => {
@@ -571,7 +602,7 @@ app.post('/api/auth/login', async (req, res) => {
           contact: user.contact,
           role: user.role
         },
-        token: 'user-authenticated' // JWT add kar sakte hain baad mein
+        token: 'user-authenticated'
       });
     } else {
       res.status(401).json({
@@ -591,8 +622,6 @@ app.post('/api/auth/login', async (req, res) => {
 // GET check auth status
 app.get('/api/auth/check', async (req, res) => {
   try {
-    // Yahan aap token verification kar sakte hain
-    // For now, simple response
     res.json({ 
       authenticated: true,
       message: 'Auth check endpoint' 
@@ -606,7 +635,6 @@ app.get('/api/auth/check', async (req, res) => {
 // POST logout
 app.post('/api/auth/logout', async (req, res) => {
   try {
-    // Yahan aap token invalidate kar sakte hain
     res.json({ 
       success: true,
       message: 'Logout successful' 
@@ -617,5 +645,12 @@ app.post('/api/auth/logout', async (req, res) => {
   }
 });
 
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ Health check: https://safeli-app.onrender.com/health`);
+  console.log(`🏠 Home: https://safeli-app.onrender.com`);
+});
 
 module.exports = app;

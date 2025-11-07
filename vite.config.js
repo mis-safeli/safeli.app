@@ -3,10 +3,11 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
+  base: "/safeli.app/",
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src") // "@" ko src folder se map karta hai
+      "@": path.resolve(__dirname, "src")
     }
   },
   server: {

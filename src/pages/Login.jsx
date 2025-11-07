@@ -14,7 +14,10 @@ const Login = ({ onLogin }) => {
   const { toast } = useToast();
 
   // API endpoint - अपने actual backend URL से replace करें
-  const API_URL = 'http://localhost:5000/api/auth/login'; // या आपका live backend URL
+  //const API_URL = 'http://localhost:5000/api/auth/login'; // या आपका live backend URL
+const API_URL = 'https://safeli-app.onrender.com/api/auth/login';
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
